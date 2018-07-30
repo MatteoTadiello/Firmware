@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *	Copyright (c) 2012-2015 PX4 Development Team. All rights reserved.
+ *	Copyright (c) 2018 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,57 +32,60 @@
  ****************************************************************************/
 
 /**
- * @file dsm.h
+ * @file crsf_telemetry.h
  *
- * RC protocol definition for Spektrum RC
- *
- * @author Lorenz Meier <lorenz@px4.io>
+ * @author Beat Küng <beat-kueng@gmx.net>
  */
 
 #pragma once
 
-#include <stdint.h>
-#include <px4_defines.h>
+#include <uORB/topics/battery_status.h>
+#include <uORB/topics/vehicle_attitude.h>
+#include <uORB/topics/vehicle_gps_position.h>
+#include <uORB/topics/vehicle_status.h>
+#include <drivers/drv_hrt.h>
 
-__BEGIN_DECLS
+#include <matrix/math.hpp>
+#include <mathlib/mathlib.h>
 
-#define DSM_FRAME_SIZE		16		/**< DSM frame size in bytes */
-#define DSM_FRAME_CHANNELS	7		/**< Max supported DSM channels per frame */
-#define DSM_MAX_CHANNEL_COUNT   18  /**< Max channel count of any DSM RC */
-#define DSM_BUFFER_SIZE		(DSM_FRAME_SIZE + DSM_FRAME_SIZE / 2)
+using namespace time_literals;
 
+/**
+ * High-level class that handles sending of CRSF telemetry data
+ */
+class CRSFTelemetry
+{
+public:
+	/**
+	 * @param uart_fd file descriptor for the UART to use. It is expected to be configured
+	 * already.
+	 */
+	CRSFTelemetry(int uart_fd);
 
-#pragma pack(push, 1)
-typedef   uint8_t dsm_frame_t[DSM_BUFFER_SIZE]; /**< DSM dsm frame receive buffer */
-typedef   uint8_t dsm_buf_t[DSM_FRAME_SIZE * 2]; // Define working buffer
+	~CRSFTelemetry();
 
-typedef  struct dsm_decode_t {
-	dsm_frame_t frame;
-	dsm_buf_t buf;
-} dsm_decode_t;
+	/**
+	 * Send telemetry data. Call this regularly (i.e. at 100Hz), it will automatically
+	 * limit the sending rate.
+	 * @return true if new data sent
+	 */
+	bool update(const hrt_abstime &now);
 
-#pragma pack(pop)
+private:
+	bool send_battery();
+	bool send_gps();
+	bool send_attitude();
+	bool send_flight_mode();
 
-__EXPORT int	dsm_init(const char *device);
-__EXPORT void	dsm_deinit(void);
-__EXPORT void	dsm_proto_init(void);
-__EXPORT int	dsm_config(int dsm_fd);
-__EXPORT bool	dsm_input(int dsm_fd, uint16_t *values, uint16_t *num_values, bool *dsm_11_bit, uint8_t *n_bytes,
-			  uint8_t **bytes, int8_t *rssi, unsigned max_values);
+	int _vehicle_gps_position_sub;
+	int _battery_status_sub;
+	int _vehicle_attitude_sub;
+	int _vehicle_status_sub;
 
-__EXPORT bool	dsm_parse(const uint64_t now, const uint8_t *frame, const unsigned len, uint16_t *values,
-			  uint16_t *num_values, bool *dsm_11_bit, unsigned *frame_drops, int8_t *rssi_percent, uint16_t max_channels);
+	hrt_abstime _last_update{0};
 
-#ifdef SPEKTRUM_POWER
-__EXPORT void	dsm_bind(uint16_t cmd, int pulses);
-#endif
+	static constexpr int num_data_types{4}; ///< number of different telemetry data types
+	int _next_type{0};
 
-enum DSM_CMD {							/* DSM bind states */
-	DSM_CMD_BIND_POWER_DOWN = 0,
-	DSM_CMD_BIND_POWER_UP,
-	DSM_CMD_BIND_SET_RX_OUT,
-	DSM_CMD_BIND_SEND_PULSES,
-	DSM_CMD_BIND_REINIT_UART
+	int _uart_fd;
 };
-
-__END_DECLS

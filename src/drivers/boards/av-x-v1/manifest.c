@@ -32,43 +32,35 @@
  ****************************************************************************/
 
 /**
- * @file FlightManualStabilized.hpp
+ * @file manifest.c
  *
- * Flight task for manual controlled attitude.
- * It generates thrust and yaw setpoints.
+ * This module supplies the interface to the manifest of hardware that is
+ * optional and dependent on the HW REV and HW VER IDs
+ *
+ * The manifest allows the system to know whether a hardware option
+ * say for example the PX4IO is an no-pop option vs it is broken.
+ *
  */
 
-#pragma once
+/****************************************************************************
+ * Included Files
+ ****************************************************************************/
 
-#include "FlightTaskManual.hpp"
+#include <px4_config.h>
+#include <stdbool.h>
+#include "systemlib/px4_macros.h"
+#include "px4_log.h"
 
-class FlightTaskManualStabilized : public FlightTaskManual
+/************************************************************************************
+ * Name: board_rc_input
+ *
+ * Description:
+ *   All boards my optionally provide this API to invert the Serial RC input.
+ *   This is needed on SoCs that support the notion RXINV or TXINV as opposed to
+ *   and external XOR controlled by a GPIO
+ *
+ ************************************************************************************/
+__EXPORT bool board_supports_single_wire(uint32_t uxart_base)
 {
-public:
-	FlightTaskManualStabilized() = default;
-
-	virtual ~FlightTaskManualStabilized() = default;
-	bool activate() override;
-	bool updateInitialize() override;
-	bool update() override;
-
-protected:
-	virtual void _updateSetpoints(); /**< updates all setpoints*/
-	virtual void _scaleSticks(); /**< scales sticks to yaw and thrust */
-	void _rotateIntoHeadingFrame(matrix::Vector2f &vec); /**< rotates vector into local frame */
-
-private:
-	void _updateHeadingSetpoints(); /**< sets yaw or yaw speed */
-	void _updateThrustSetpoints(); /**< sets thrust setpoint */
-	float _throttleCurve(); /**< piecewise linear mapping from stick to throttle */
-
-	float _throttle{}; /** mapped from stick z */
-
-	DEFINE_PARAMETERS_CUSTOM_PARENT(FlightTaskManual,
-					(ParamFloat<px4::params::MPC_MAN_Y_MAX>) _yaw_rate_scaling, /**< scaling factor from stick to yaw rate */
-					(ParamFloat<px4::params::MPC_MAN_TILT_MAX>) _tilt_max_man, /**< maximum tilt allowed for manual flight */
-					(ParamFloat<px4::params::MPC_MANTHR_MIN>) _throttle_min_stabilized, /**< minimum throttle for stabilized */
-					(ParamFloat<px4::params::MPC_THR_MAX>) _throttle_max, /**< maximum throttle that always has to be satisfied in flight*/
-					(ParamFloat<px4::params::MPC_THR_HOVER>) _throttle_hover /**< throttle value at which vehicle is at hover equilibrium */
-				       )
-};
+	return uxart_base == RC_UXART_BASE;
+}
