@@ -142,6 +142,11 @@ set(config_module_list
 
 	# Hardware test
 	#examples/hwtest
+
+	#
+	# Swarm
+	#
+	swarm/
 )
 
 # Default config_sitl_rcS_dir (posix_sitl_default), this is overwritten later
