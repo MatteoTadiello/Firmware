@@ -37,19 +37,18 @@
  *
  * @author Matteo Tadiello <matteo.tadiello@studenti.unitn.it>
  */
-
-
 #include "position_velocity_publisher.h"
 
 #include <px4_getopt.h>
 #include <px4_log.h>
 #include <px4_posix.h>
 #include <poll.h>
+#include <sys/types.h>
 #include <uORB/uORB.h>
 #include <uORB/topics/parameter_update.h>
 #include <uORB/topics/sensor_combined.h>
 //#include <uORB/topics/ca_trajectory.h>
-#include <uORB/topics/vehicle_global_position.h>
+#include <uORB/topics/vehicle_gps_position_others.h>
 //#include <v1.0/custom_messages/mavlink_msg_ca_trajectory.h>
 
 int position_velocity_publisher::print_usage(const char *reason)
@@ -178,7 +177,8 @@ position_velocity_publisher::position_velocity_publisher(int example_param, bool
 
 void position_velocity_publisher::run()
 {
-	int sensor_sub_fd = orb_subscribe(ORB_ID(vehicle_global_position));
+	
+	int sensor_sub_fd = orb_subscribe(ORB_ID(vehicle_gps_position_others));
 	/* limit the update rate to 5 Hz */
 	orb_set_interval(sensor_sub_fd, 200);
 
@@ -187,15 +187,16 @@ void position_velocity_publisher::run()
     	fds[0].events = POLLIN;
     	fds[0].revents = POLLIN;
 
-	while(true){
+    	while(true){
 		//int poll_ret = px4_poll(fds, 1, 1000);
 
 		if (fds[0].revents & POLLIN) {
         	/* obtained data for the first file descriptor */
-        	struct vehicle_global_position_s raw;
+        	struct vehicle_gps_position_others_s raw;
         	/* copy sensors raw data into local buffer */
-        	orb_copy(ORB_ID(vehicle_global_position), sensor_sub_fd, &raw);
-        	PX4_INFO("Position:\n Latitudine: %f \n Longitudine %f \n \n ", //Altitudine: %f \n vel_n: %f \n vel_e: %f \n vel_d: %f \n \n ",
+        	orb_copy(ORB_ID(vehicle_gps_position_others), sensor_sub_fd, &raw);
+        	PX4_INFO("Position:\n SysID: %f \n Latitudine: %f \n Longitudine %f \n \n ", //Altitudine: %f \n vel_n: %f \n vel_e: %f \n vel_d: %f \n \n ",
+                    (double)raw.sysid,
                     (double)raw.lat,
                     (double)raw.lon);
                     // (float)raw.alt,
@@ -203,7 +204,6 @@ void position_velocity_publisher::run()
                     // (float)raw.vel_e,
                     // (float)raw.vel_d);
     		}
-
     	}
 	// // Example: run the loop synchronized to the sensor_combined topic publication
 	// int sensor_combined_sub = orb_subscribe(ORB_ID(sensor_combined));

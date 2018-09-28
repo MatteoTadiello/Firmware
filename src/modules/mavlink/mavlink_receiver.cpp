@@ -146,6 +146,7 @@ MavlinkReceiver::MavlinkReceiver(Mavlink *parent) :
 	_debug_key_value_pub(nullptr),
 	_debug_value_pub(nullptr),
 	_debug_vect_pub(nullptr),
+	_gps_pub_others(nullptr),
 	_gps_inject_data_pub(nullptr),
 	_command_ack_pub(nullptr),
 	_control_mode_sub(orb_subscribe(ORB_ID(vehicle_control_mode))),
@@ -339,6 +340,10 @@ MavlinkReceiver::handle_message(mavlink_message_t *msg)
 
 	case MAVLINK_MSG_ID_DEBUG_VECT:
 		handle_message_debug_vect(msg);
+		break;
+
+	case MAVLINK_MSG_ID_GPS_RAW_INT:
+		handle_message_gps_sysid(msg);
 		break;
 
 	default:
@@ -2081,7 +2086,6 @@ MavlinkReceiver::handle_message_hil_gps(mavlink_message_t *msg)
 	uint64_t timestamp = hrt_absolute_time();
 
 	struct vehicle_gps_position_s hil_gps = {};
-
 	hil_gps.timestamp_time_relative = 0;
 	hil_gps.time_utc_usec = gps.time_usec;
 
@@ -2485,6 +2489,53 @@ void MavlinkReceiver::handle_message_debug_vect(mavlink_message_t *msg)
 		orb_publish(ORB_ID(debug_vect), _debug_vect_pub, &debug_topic);
 	}
 }
+
+///////////////////////////////////PROVA PER HANDLE DI GPS DATA SENT FROM OTER UAVs
+void MavlinkReceiver::handle_message_gps_sysid(mavlink_message_t *msg)
+{
+    mavlink_gps_raw_int_t gps;
+	mavlink_msg_gps_raw_int_decode(msg, &gps);
+
+	uint64_t timestamp = hrt_absolute_time();
+
+	struct vehicle_gps_position_others_s gps_sysid = {};
+	gps_sysid.sysid = msg->sysid;
+
+	gps_sysid.timestamp_time_relative = 0;
+	gps_sysid.time_utc_usec = gps.time_usec;
+
+	gps_sysid.timestamp = timestamp;
+	gps_sysid.lat = gps.lat;
+	gps_sysid.lon = gps.lon;
+	gps_sysid.alt = gps.alt;
+	gps_sysid.eph = (float)gps.eph * 1e-2f; // from cm to m
+	gps_sysid.epv = (float)gps.epv * 1e-2f; // from cm to m
+
+	gps_sysid.s_variance_m_s = 1.0f;
+
+	gps_sysid.vel_m_s = (float)gps.vel * 1e-2f; // from cm/s to m/s
+	//gps_sysid.vel_n_m_s = gps.vel_n_m_s * 1e-2f; // from cm to m
+	//gps_sysid.vel_e_m_s = gps.vel_e_m_s * 1e-2f; // from cm to m
+	//gps_sysid.vel_d_m_s = gps.vel_d_m_s * 1e-2f; // from cm to m
+	gps_sysid.vel_ned_valid = true;
+	gps_sysid.cog_rad = ((gps.cog == 65535) ? NAN : wrap_2pi(math::radians(gps.cog * 1e-2f)));
+
+	gps_sysid.fix_type = gps.fix_type;
+	gps_sysid.satellites_used = gps.satellites_visible;  //TODO: rename mavlink_hil_gps_t sats visible to used?
+
+	gps_sysid.heading = NAN;
+
+	if (_gps_pub_others == nullptr) {
+		_gps_pub_others = orb_advertise(ORB_ID(vehicle_gps_position_others), &gps_sysid);
+
+	} else {
+		orb_publish(ORB_ID(vehicle_gps_position_others), _gps_pub_others, &gps_sysid);
+	}
+}
+
+///////////////////////////
+
+
 
 /**
  * Receive data from UART.

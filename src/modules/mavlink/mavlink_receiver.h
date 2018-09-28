@@ -75,6 +75,7 @@
 #include <uORB/topics/vehicle_attitude_setpoint.h>
 #include <uORB/topics/vehicle_command.h>
 #include <uORB/topics/vehicle_gps_position.h>
+#include <uORB/topics/vehicle_gps_position_others.h>
 #include <uORB/topics/vehicle_global_position.h>
 #include <uORB/topics/vehicle_land_detected.h>
 #include <uORB/topics/vehicle_local_position.h>
@@ -162,6 +163,7 @@ private:
 	void handle_message_named_value_float(mavlink_message_t *msg);
 	void handle_message_debug(mavlink_message_t *msg);
 	void handle_message_debug_vect(mavlink_message_t *msg);
+	void handle_message_gps_sysid(mavlink_message_t *msg);
 
 	void *receive_thread(void *arg);
 
@@ -243,6 +245,7 @@ private:
 	orb_advert_t _debug_key_value_pub;
 	orb_advert_t _debug_value_pub;
 	orb_advert_t _debug_vect_pub;
+	orb_advert_t _gps_pub_others;
 	static const int _gps_inject_data_queue_size = 6;
 	orb_advert_t _gps_inject_data_pub;
 	orb_advert_t _command_ack_pub;
